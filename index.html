@@ -1,18 +1,26 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="zh">
 <head>
-    <title>My Website</title>
+<meta charset="UTF-8">
+<title>每日增加数字</title>
 </head>
+<body style="text-align:center; margin-top:50px; font-size:50px;">
 
-<body>
+<div id="number">0</div>
 
-    <h1>Hello World!!</h1>
+<script>
+    const today = new Date().toDateString(); // 今天日期字符串
+    const lastDay = localStorage.getItem('lastDay');
+    let num = parseInt(localStorage.getItem('num')) || 0;
 
-    <button onclick="alert('You clicked me!')" style="padding:10px 20px; font-size:16px;">
-        Click Me
-    </button>
+    if(lastDay !== today){   // 如果今天还没增加过
+        num += 1;
+        localStorage.setItem('num', num);
+        localStorage.setItem('lastDay', today);
+    }
+
+    document.getElementById('number').textContent = num;
+</script>
 
 </body>
-
 </html>
