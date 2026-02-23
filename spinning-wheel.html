@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spinning Wheel</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 2rem;
+    }
+
+    h1 {
+      color: #e94560;
+      margin-bottom: 1.5rem;
+      font-weight: 700;
+      text-shadow: 0 0 20px rgba(233, 69, 96, 0.4);
+    }
+
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .wheel-wrapper {
+      position: relative;
+      width: 520px;
+      height: 520px;
+    }
+
+    .arrow {
+      position: absolute;
+      top: -2px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 20px rgba(255, 100, 100, 0.4));
+    }
+
+    .arrow svg {
+      display: block;
+      width: 64px;
+      height: 72px;
+    }
+
+    .wheel {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      overflow: hidden;
+      box-shadow:
+        inset 0 0 0 12px #1a1a2e,
+        inset 0 0 0 18px #e94560,
+        0 0 40px rgba(233, 69, 96, 0.3),
+        0 12px 50px rgba(0, 0, 0, 0.5);
+      transition: none;
+    }
+
+    .wheel.spinning {
+      transition: transform var(--spin-duration, 5s) cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    }
+
+    .wheel-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      border-radius: 50%;
+    }
+
+    .wheel-slices {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+    }
+
+    .wheel-labels {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .wheel-label-wrap {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 2px;
+      height: 42%;
+      margin-left: -1px;
+      transform-origin: 50% 0%;
+    }
+
+    .wheel-label {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 60px;
+      margin-left: -30px;
+      font-weight: 800;
+      font-size: 18px;
+      color: #fff;
+      text-align: center;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+    }
+
+    .spin-btn {
+      margin-top: 0.5rem;
+      padding: 14px 48px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #e94560 0%, #c73e54 100%);
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(233, 69, 96, 0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .spin-btn:hover:not(:disabled) {
+      transform: scale(1.05);
+      box-shadow: 0 8px 28px rgba(233, 69, 96, 0.5);
+    }
+
+    .spin-btn:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .spin-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
+    .load-msg {
+      color: #888;
+      margin-bottom: 1rem;
+    }
+
+    .load-msg.error {
+      color: #f87171;
+    }
+
+    .result-box {
+      display: none;
+    }
+
+    .pop-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    .pop-overlay.show {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .pop-overlay.show.result-flash {
+      animation: overlayFlash 0.8s ease-out;
+    }
+
+    @keyframes overlayFlash {
+      0% {
+        background: rgba(255, 255, 255, 0.5);
+      }
+
+      40% {
+        background: rgba(255, 180, 180, 0.4);
+      }
+
+      100% {
+        background: rgba(0, 0, 0, 0.65);
+      }
+    }
+
+    .pop-box {
+      background: linear-gradient(145deg, #1a1a2e 0%, #16213e 100%);
+      border: 3px solid #e94560;
+      border-radius: 20px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(233, 69, 96, 0.3);
+      transform: scale(0.3);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      min-width: 280px;
+    }
+
+    .pop-overlay.show .pop-box {
+      transform: scale(1);
+    }
+
+    .pop-box.result-pop {
+      animation: resultPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes resultPop {
+      0% {
+        transform: scale(0.2);
+        opacity: 0;
+        filter: brightness(2) blur(4px);
+      }
+
+      50% {
+        transform: scale(1.12);
+        opacity: 1;
+        filter: brightness(1.3) blur(0);
+      }
+
+      75% {
+        transform: scale(0.97);
+        filter: brightness(1);
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+        filter: brightness(1) blur(0);
+      }
+    }
+
+    .pop-box .pop-title {
+      font-size: 1rem;
+      color: #888;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.1em;
+    }
+
+    .pop-box .pop-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 0.25rem;
+    }
+
+    .pop-box .pop-detail {
+      font-size: 1.1rem;
+      color: #aaa;
+      margin-bottom: 1rem;
+    }
+
+    .pop-box .pop-reveal-hint {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 1rem;
+      cursor: pointer;
+    }
+
+    .pop-box.revealed .pop-detail {
+      display: block;
+    }
+
+    .pop-box.revealed .pop-reveal-hint {
+      display: none;
+    }
+
+    .pop-box:not(.revealed) .pop-detail {
+      display: none;
+    }
+
+    .pop-box.prize .pop-value {
+      color: #4ade80;
+      text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+    }
+
+    .pop-box.punish .pop-value {
+      color: #f87171;
+      text-shadow: 0 0 20px rgba(248, 113, 113, 0.5);
+    }
+
+    .pop-close {
+      padding: 10px 28px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      background: #e94560;
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+
+    .pop-close:hover {
+      transform: scale(1.05);
+    }
+
+    .confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 99;
+      overflow: hidden;
+    }
+
+    .confetti-dot {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      opacity: 0;
+      animation: confettiOut 1.8s ease-out forwards;
+    }
+
+    .confetti-strip {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 8px;
+      height: 20px;
+      border-radius: 2px;
+      opacity: 0;
+      animation: confettiOut 1.8s ease-out forwards;
+    }
+
+    @keyframes confettiOut {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(0.3) rotate(720deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Spin the Wheel</h1>
+  <p class="load-msg" id="loadMsg">載入中… Loading…</p>
+  <div class="game-container">
+    <div class="wheel-wrapper">
+      <div class="arrow">
+        <svg viewBox="0 0 64 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="arrowGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stop-color="#ff6b6b" />
+              <stop offset="100%" stop-color="#c92a2a" />
+            </linearGradient>
+            <filter id="arrowShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000" flood-opacity="0.4" />
+            </filter>
+          </defs>
+          <path d="M32 72 L60 14 L44 14 L44 0 L20 0 L20 14 L4 14 Z" fill="url(#arrowGrad)" filter="url(#arrowShadow)" />
+          <path d="M32 64 L52 18 L38 18 L38 8 L26 8 L26 18 L12 18 Z" fill="rgba(255,255,255,0.25)"
+            stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+        </svg>
+      </div>
+      <div class="wheel" id="wheel">
+        <div class="wheel-inner" id="wheelInner"></div>
+      </div>
+    </div>
+    <button class="spin-btn" id="spinBtn">Spin</button>
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <div class="pop-overlay" id="popOverlay">
+    <div class="pop-box" id="popBox">
+      <div class="pop-title">結果 Result</div>
+      <div class="pop-value" id="popValue">—</div>
+      <div class="pop-reveal-hint" id="popRevealHint">點擊查看內容 Click to see</div>
+      <div class="pop-detail" id="popDetail"></div>
+      <button type="button" class="pop-close" id="popClose">關閉 Close</button>
+    </div>
+  </div>
+
+  <script type="application/json"
+    id="wheel-data">{"prizes":["奶茶卷","100BanBan币","外卖卷","BanBan典藏商店"],"punishments":["BanBan照","认主视频","骚Ban视频","小骚话"]}</script>
+
+  <script>
+    const PRIZE_COLORS = ['#4ade80', '#2d6a4f', '#2a9d8f', '#16a34a'];
+    const PUNISH_COLORS = ['#f87171', '#e94560', '#dc2626', '#b91c1c'];
+    const SLICE_DEG = 360 / 8;
+
+    const wheel = document.getElementById('wheel');
+    const wheelInner = document.getElementById('wheelInner');
+    const spinBtn = document.getElementById('spinBtn');
+    const loadMsg = document.getElementById('loadMsg');
+    const popOverlay = document.getElementById('popOverlay');
+    const popBox = document.getElementById('popBox');
+    const popValue = document.getElementById('popValue');
+    const popRevealHint = document.getElementById('popRevealHint');
+    const popDetail = document.getElementById('popDetail');
+    const popClose = document.getElementById('popClose');
+
+    let currentRotation = 0;
+    let isSpinning = false;
+    let listData = { prizes: [], punishments: [] };
+    let wheelSegments = [];
+
+    function shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    function getSegments() {
+      const p = listData.prizes.slice(0, 4);
+      const u = listData.punishments.slice(0, 4);
+      const segs = [];
+      for (let i = 0; i < 4; i++) segs.push({ type: 'prize', label: '獎品', text: p[i] || 'Prize ' + (i + 1), color: PRIZE_COLORS[i] });
+      for (let i = 0; i < 4; i++) segs.push({ type: 'punish', label: '懲罰', text: u[i] || 'Punish ' + (i + 1), color: PUNISH_COLORS[i] });
+      return segs;
+    }
+
+    function buildWheel() {
+      wheelSegments = shuffle(getSegments());
+      const segs = wheelSegments;
+      const gradientStops = segs.map((s, i) => {
+        const start = i * SLICE_DEG;
+        return `${s.color} ${start}deg ${start + SLICE_DEG}deg`;
+      }).join(', ');
+      const labelsHtml = segs.map((s, i) => {
+        const angle = i * SLICE_DEG + SLICE_DEG / 2;
+        return `<div class="wheel-label-wrap" style="transform:rotate(${angle}deg)"><span class="wheel-label" style="transform:translate(-50%, 100%) rotate(${-angle}deg)">${s.label}</span></div>`;
+      }).join('');
+      wheelInner.innerHTML = `
+        <div class="wheel-slices" style="background:conic-gradient(from 0deg, ${gradientStops});"></div>
+        <div class="wheel-labels">${labelsHtml}</div>
+      `;
+    }
+
+    function getResultSegment() {
+      if (!wheelSegments.length) return { type: 'prize', label: '獎品', text: '', color: PRIZE_COLORS[0] };
+      const norm = (360 - (currentRotation % 360) + 360) % 360;
+      const idx = Math.floor(norm / SLICE_DEG) % wheelSegments.length;
+      return wheelSegments[idx];
+    }
+
+    function showPop(result) {
+      popValue.textContent = result.label;
+      popDetail.textContent = result.text;
+      popBox.className = 'pop-box ' + result.type;
+      popBox.classList.remove('revealed');
+      popOverlay.classList.add('show');
+      popOverlay.classList.add('result-flash');
+      popBox.classList.add('result-pop');
+      setTimeout(() => {
+        popOverlay.classList.remove('result-flash');
+        popBox.classList.remove('result-pop');
+      }, 800);
+      triggerConfetti(result.type);
+    }
+
+    function triggerConfetti(type) {
+      const container = document.getElementById('confetti');
+      container.innerHTML = '';
+      const colors = type === 'prize'
+        ? ['#4ade80', '#86efac', '#22c55e', '#fbbf24', '#fde047', '#facc15']
+        : ['#f87171', '#fca5a5', '#ef4444', '#fbbf24', '#fde047'];
+      const count = 48;
+      for (let i = 0; i < count; i++) {
+        const isStrip = Math.random() > 0.5;
+        const d = document.createElement('div');
+        d.className = isStrip ? 'confetti-strip' : 'confetti-dot';
+        d.style.background = colors[Math.floor(Math.random() * colors.length)];
+        const angle = (Math.PI * 2 * i) / count + Math.random() * 1.2;
+        const dist = 250 + Math.random() * 350;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        d.style.setProperty('--dx', dx + 'px');
+        d.style.setProperty('--dy', dy + 'px');
+        d.style.animationDelay = Math.random() * 0.25 + 's';
+        d.style.animationDuration = (1.4 + Math.random() * 0.8) + 's';
+        if (isStrip) d.style.transform = `translate(-50%,-50%) rotate(${Math.random() * 360}deg)`;
+        container.appendChild(d);
+      }
+      setTimeout(() => { container.innerHTML = ''; }, 2500);
+    }
+
+    function hidePop() {
+      popOverlay.classList.remove('show');
+    }
+
+    function revealContent() {
+      popBox.classList.add('revealed');
+      popClose.focus();
+    }
+
+    function spin() {
+      if (isSpinning) return;
+      isSpinning = true;
+      spinBtn.disabled = true;
+      hidePop();
+
+      const duration = (5 + Math.random() * 2) * 1000;
+      const totalDegrees = 360 * (3 + Math.random() * 4) + Math.random() * 360;
+      currentRotation += totalDegrees;
+
+      wheel.style.setProperty('--spin-duration', duration / 1000 + 's');
+      wheel.classList.add('spinning');
+      wheel.style.transform = `translateX(-50%) rotate(${currentRotation}deg)`;
+
+      setTimeout(() => {
+        wheel.classList.remove('spinning');
+        showPop(getResultSegment());
+        isSpinning = false;
+        spinBtn.disabled = false;
+      }, duration);
+    }
+
+    spinBtn.addEventListener('click', spin);
+    popClose.addEventListener('click', hidePop);
+    popRevealHint.addEventListener('click', revealContent);
+    popBox.addEventListener('click', function (e) {
+      if (!popBox.classList.contains('revealed') && e.target !== popClose) revealContent();
+    });
+    popOverlay.addEventListener('click', function (e) {
+      if (e.target === popOverlay) hidePop();
+    });
+
+    (function loadData() {
+      const el = document.getElementById('wheel-data');
+      try {
+        const data = JSON.parse(el.textContent.trim());
+        listData.prizes = Array.isArray(data.prizes) ? data.prizes : [];
+        listData.punishments = Array.isArray(data.punishments) ? data.punishments : [];
+      } catch (err) { }
+      fetch('data.json').then(r => r.ok && r.json()).then(data => {
+        if (data.prizes) listData.prizes = data.prizes;
+        if (data.punishments) listData.punishments = data.punishments;
+      }).catch(() => { }).finally(() => {
+        loadMsg.style.display = 'none';
+        buildWheel();
+      });
+    })();
+  </script>
+</body>
+
+</html>
